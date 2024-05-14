@@ -1,5 +1,6 @@
 import numpy as np
 import pandas as pd
+from collections import Counter
 
 
 def k_fold_cross_validation(k, data):
@@ -14,9 +15,9 @@ def k_fold_cross_validation(k, data):
     return folds_indices
 
 
-def knn(data, f_indices, k):
-    features = np.array(dataset.iloc[:, :-1].values)
-    labels = np.array(dataset.iloc[:, -1].values)
+def knn(datas, f_indices, k):
+    features = np.array(datas.iloc[:, :-1].values)
+    labels = np.array(datas.iloc[:, -1].values)
 
     count_correct = 0
     for train_index, test_index in f_indices:
@@ -25,16 +26,18 @@ def knn(data, f_indices, k):
 
         # feature_diffs in size (1-fold) * (k-1)fold * feature_size
         feature_diffs = x_test[:, None, :] - x_train[None, :, :]
-        distance = np.sum(feature_diffs ** 2, axis=2)
+        distance = np.sum(feature_diffs ** 2, axis=2)   # Square of all feature diffs
+        k_near_indices = np.argsort(distance, axis=1)[:, :k]    
+       
+        predicted_labels = [Counter(y_train[k_near].flat).most_common(1)[0][0] for k_near in k_near_indices]
+        fold_correct = np.array([predicted_labels == y_test]).sum()
+        count_correct += fold_correct
 
-        k_near_indices = np.argsort(distance, axis=1)[:, :k]
-        predicted_labels = [max(labels[k_near]) for k_near in k_near_indices]
-        count_correct += np.array([predicted_labels == y_test]).sum()
-
-    return (count_correct / len(data)) * 100
+    return (count_correct / len(datas)) * 100
 
 
 if __name__ == '__main__':
     dataset = pd.read_csv('IRIS.csv')
+    df = dataset.sample(frac=1).reset_index(drop=True)   # Shuffle data
     folds = k_fold_cross_validation(10, df)
-    print("Accuracy is: {} percent".format(knn(df, folds, 10), ".2f"))
+    print("Accuracy is: {} percent".format(knn(df, folds, 10), '.2f'))
